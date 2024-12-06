@@ -4,6 +4,10 @@
 # Install microk8s
 snap install microk8s --channel=1.31/stable --classic
 
+# Enable RBAC
+microk8s enable rbac
+wait 10
+
 # Install kubectl in microk8s-vm
 snap install kubectl --channel 1.31/stable --classic
 

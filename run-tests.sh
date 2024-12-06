@@ -1,38 +1,17 @@
-#!/bin/bash
+# Install curl service in default
+kubectl apply -f curl.yaml
+kubectl exec deploy/curl -- curl -sI http://httpbin.org/get -v
 
-# Install test workload
-kubectl apply -f https://raw.githubusercontent.com/istio/istio/refs/heads/master/samples/curl/curl.yaml
-sleep 10
-echo "--------------------"
-# Test curl of httpbin.org
-echo "curl results with nothing in place"
-kubectl exec deploy/curl -- curl -sI http://httpbin.org/get
-echo "--------------------"
-# Create waypoint/egress-gateway and apply to common-infrastructure namespace
-kubectl create namespace foo
-echo "--------------------"
-kubectl apply -f egress-gateway.yaml
-sleep 10
-echo "--------------------"
+# Set up ambient in the default namespace
 kubectl label namespace default istio.io/dataplane-mode=ambient
-kubectl label namespace default istio.io/use-waypoint=egress-gateway
-kubectl label namespace foo istio.io/dataplane-mode=ambient
-kubectl label namespace foo istio.io/use-waypoint=egress-gateway
-echo "--------------------"
+/root/.istioctl/bin/istioctl waypoint apply --enroll-namespace --name egress-gateway --namespace default
+
+# Add the serviceentry for httpbin.org
 kubectl apply -f serviceentry.yaml
-echo "--------------------"
-sleep 10
-echo "curl before AuthorizationPolicy"
-kubectl get serviceentry httpbin.org -oyaml
-echo "--------------------"
-kubectl exec deploy/curl -- curl -sI http://httpbin.org/get -v
-echo "--------------------"
+
+# Add the authorizationpolicy only allowing the curl SA
 kubectl apply -f authorizationpolicy.yaml
-echo "--------------------"
-echo "curl after AuthorizationPolicy"
+
+# Rerun the curls
 kubectl exec deploy/curl -- curl -sI http://httpbin.org/get -v
-echo "--------------------"
-kubectl apply -f https://raw.githubusercontent.com/istio/istio/refs/heads/master/samples/curl/curl.yaml -n foo
-echo "--------------------"
-echo "curl after AuthorizationPolicy from foo Namespace"
-kubectl exec deploy/curl -- curl -sI http://httpbin.org/get -n foo
+kubectl exec deploy/curl-defaultsa -- curl -sI http://httpbin.org/get -v
